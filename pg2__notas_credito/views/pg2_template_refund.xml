@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<openerp>
+    <data>
+
+        <!---->
+
+        <record model="ir.ui.view" id="pg2_journal_inherit">
+            <field name="name">pg2.inherit.journal</field>
+            <field name="model">account.journal</field>
+            <field name="inherit_id" ref="account.view_account_journal_form"/>
+            <field name="type">form</field>
+            <field name="arch" type="xml">
+
+                <xpath expr="//form/notebook/page[@string='Advanced Settings']/group/group/field[@name='group_invoice_lines']" position="after">
+
+                    <field name="nota_credito" string="Es un diario de aplicacion para notas de credio?"/>
+                    
+                </xpath>
+                
+            </field>
+        </record>
+
+        <record model="ir.ui.view" id="pg2_inherit_invoice_id">
+                        <field name="name">pg2.inherit.invoice</field>
+                        <field name="model">account.invoice</field>
+                        <field name="inherit_id" ref="account.invoice_supplier_form"/>
+                        <field name="context">{'type':'in_refund'}</field>
+                        <field name="type">form</field>
+                        <field name="arch" type="xml">
+
+                          
+                                <xpath expr="//form/header/button[@string='Ask Refund']" position="replace">
+                                    <button name="reconciliar"  type="object" string="Validar nota de credito / debitos" class="oe_highlight" 
+                                    attrs="{'invisible':['|','|',('state','!=','open'),('type','=','in_invoice'),('type','=','out_invoice')]}"/>
+                                </xpath>
+
+                                <xpath expr="//form/header/button[@string='Pay']" position="attributes">
+                                    <attribute name="invisible">1</attribute>
+                                </xpath>
+
+
+                                <xpath expr="//form/sheet/group/group/field[@name='origin']" position="after">
+
+                                   
+                                
+                                <field name="description" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','in_out_refund')],'readonly':[('state','not in','draft')] }"/>                                                                       
+                                                                       
+                                    <field name="factura" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','in_out_refund')],'readonly':[('state','not in','draft')]}"/>
+
+                                    <field name="tipo"  attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','in_out_refund')],'readonly':[('state','not in','draft')]}"/>
+
+                                </xpath>
+
+                                <xpath expr="//form/sheet/group/group/field[@name='date_due']" position="after">
+                                    <field attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','out_refund')],'readonly':[('state','not in','draft')]}" name="establecimiento"/>
+
+
+                                    <field attrs="{'invisible':['|',('type','=','out_invoice'),('type','=','in_invoice')],'readonly':[('state','not in','draft')],'required':['|',('type','=','in_refund'),('type','=','out_refund')]}" name="punto_emision"/>
+
+                                    <field attrs="{'invisible':['|',('type','=','out_invoice'),('type','=','in_invoice')],'readonly':[('state','not in','draft')],'required':['|',('type','=','in_refund'),('type','=','out_refund')]}" name="secuencial"/>
+
+                                    
+                                    <field name="codigo_autorizacion" attrs="{'invisible':['|',('type','=','out_invoice'),('type','=','in_invoice')],'readonly':[('state','not in','draft')],'required':['|',('type','=','in_refund'),('type','=','out_refund')]}"/>
+
+
+                                    <field name="period_id" attrs="{'invisible':['|',('type','=','out_invoice'),('type','=','in_invoice')],'readonly':[('state','not in','draft')],'required':['|',('type','=','in_refund'),('type','=','out_refund')]}"/>
+
+                                </xpath>
+
+                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']/tree/field[@name='price_unit']" position="before">
+                                     <field name="type_computed" invisible="1"/>
+                                </xpath>
+
+
+                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']/tree/field[@name='product_id']" position="attributes">
+                                    <attribute name="attrs">{'readonly':['|',('type_computed','=','in_refund'),('type_computed','=','out_refund')]}</attribute>
+                                </xpath>
+
+                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']/tree/field[@name='name']" position="attributes">
+                                    <attribute name="attrs">{'readonly':['|',('type_computed','=','in_refund'),('type_computed','=','out_refund')]}</attribute>
+                                </xpath>
+
+                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']/tree/field[@name='company_id']" position="attributes">
+                                    <attribute name="attrs">{'readonly':['|',('type_computed','=','in_refund'),('type_computed','=','out_refund')]}</attribute>
+                                </xpath>
+
+                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']/tree/field[@name='account_id']" position="attributes">
+                                    <attribute name="attrs">
+                                        {'readonly':['|',('type_computed','=','in_refund'),('type_computed','=','out_refund')]}
+                                    </attribute>
+                                </xpath>
+
+                                
+
+                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']/tree/field[@name='price_unit']" position="after">
+
+                                     <field name="cantidad_devuelta" domain="{'invisible':['|',('type_computed','=','in_invoice'),('type_computed','=','out_invoice')]}"  string="Cantidad devuelta" readonly="1"/>
+
+
+                                     <field name="cantidad_facturada"  string="Cantidad facturada" readonly="1"/>
+                                </xpath>
+
+                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']/tree/field[@name='price_unit']" position="replace">
+
+
+                                    <field name="price_unit" attrs="{'readonly':['|',('type_computed','=','in_refund'),('type_computed','=','out_refund')]}"/>
+                                    <!--
+                                    <attribute name="attr">{'readonly':['|',('type','!=','in_refund'),('type','=','in_invoice')]}"</attribute>
+                                    -->
+                                </xpath>
+
+
+
+
+                        </field>     
+        </record>
+
+
+        <record model="ir.ui.view" id="pg2_inherit_tree">
+                        <field name="name">pg2.inherit.invoice.tree</field>
+                        <field name="model">account.invoice</field>
+                        <field name="type" >tree</field>
+                        <field name="inherit_id" ref="account.invoice_tree"/>
+                        <field name="arch" type="xml">
+                            <xpath expr="//tree[@string='Invoice']/field[@name='number']" position='attributes'>
+                                <attribute name="attrs">
+                                    {'invisible':['|',('type','=','in_refund'),('type','=','out_refund')]}
+                                </attribute>
+                            </xpath>  
+                    </field>  
+        </record>
+
+
+        <record id="pg2_action_notasCredito" model="ir.actions.act_window">
+            <field name="name">Notas de credito</field>
+            <field name="res_model">account.invoice</field>
+            <field name="view_type">form</field>
+            <field name="view_mode">tree,form</field>
+            <field name="domain">[('type','in', ['in_refund', 'out_refund']) ]</field>
+        </record>
+        
+
+    
+        <menuitem id="principal" name="Notas de Credito" sequence="5"/> 
+        <menuitem id="inicio" name="Inicio" sequence="5" parent="principal"/>
+        <menuitem id="nota_credito" name="Notas de credito" parent="inicio" action="pg2_action_notasCredito"/>
+    
+
+    </data>
+</openerp>
