@@ -30,7 +30,7 @@
 
                           
                                 <xpath expr="//form/header/button[@string='Ask Refund']" position="replace">
-                                    <button name="reconciliar"  type="object" string="Validar nota de credito / debitos" class="oe_highlight" 
+                                    <button name="reconciliar"  type="object" string="Validar" class="oe_highlight" 
                                     attrs="{'invisible':['|','|',('state','!=','open'),('type','=','in_invoice'),('type','=','out_invoice')]}"/>
                                 </xpath>
 
@@ -59,7 +59,7 @@
 
                                     <field attrs="{'invisible':['|',('type','=','out_invoice'),('type','=','in_invoice')],'readonly':[('state','not in','draft')],'required':['|',('type','=','in_refund'),('type','=','out_refund')]}" name="secuencial"/>
 
-                                    
+
                                     <field name="codigo_autorizacion" attrs="{'invisible':['|',('type','=','out_invoice'),('type','=','in_invoice')],'readonly':[('state','not in','draft')],'required':['|',('type','=','in_refund'),('type','=','out_refund')]}"/>
 
 
@@ -92,9 +92,27 @@
 
                                 
 
-                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']/tree/field[@name='price_unit']" position="after">
 
-                                     <field name="cantidad_devuelta" domain="{'invisible':['|',('type_computed','=','in_invoice'),('type_computed','=','out_invoice')]}"  string="Cantidad devuelta" readonly="1"/>
+
+                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']/tree" position="attributes" >
+                                    <attribute name="create">0</attribute>
+                                    <attribute name="delete">0</attribute>                                 
+                                </xpath>
+
+
+
+                                
+                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')]}" position="attributes">
+
+                                    <attribute name="option">{'no_create':true}</attribute>
+
+                                </xpath>
+
+
+
+                                <xpath expr="//form/sheet/notebook/page[@string='Invoice']/field[@name='invoice_line']/tree/field[@name='price_unit']" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')]}" position="after">
+
+                                    <field name="cantidad_devuelta" attrs="{'invisible':['|',('type_computed','=','in_invoice'),('type_computed','=','out_invoice')]}"  string="Cantidad devuelta" readonly="1"/>
 
 
                                      <field name="cantidad_facturada"  string="Cantidad facturada" readonly="1"/>

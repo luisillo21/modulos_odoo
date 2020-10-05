@@ -51,30 +51,30 @@ class Invoices_lines_ans(models.Model):
 	def _computed_cant_facturada(self):
 		cantidad_facturada = 0
 		#cantidad_devuelta = 0
-		invoices_obj = self.env['account.invoice'].search([('id','=',self.invoice_id.factura.id)])
-		for inv_line in invoices_obj.invoice_line:
-			if self.product_id.id == inv_line.product_id.id:
-				cantidad_facturada += inv_line.quantity
-		print("Cantidad: {0}".format(cantidad_facturada))
+		if self.invoice_id.type == 'in_refund' or self.invoice_id.type == 'out_refund':
+			invoices_obj = self.env['account.invoice'].search([('id','=',self.invoice_id.factura.id)])
+			for inv_line in invoices_obj.invoice_line:
+				if self.product_id.id == inv_line.product_id.id:
+					cantidad_facturada += inv_line.quantity
+					print("Cantidad facturada: {0}".format(cantidad_facturada))
 		self.cantidad_facturada = cantidad_facturada
-		#invoices_obj = self.env['account.invoice'].search([('state','in',['paid','open']),('type','=','in_refund'),('factura','=',self.invoice_id.factura.id)])
-		#if invoices_obj:
-	 	#	for invoice in invoices_obj.invoice_line:
-	 #			print("Factura: {0}".format(invoice))
-	#	   		if invoice.product_id.id == self.product_id.id:
-	# 				cantidad_devuelta += invoice.quantity
-	# 	self.cantidad_devuelta = cantidad_devuelta
+
 	@api.one
 	def _compute_cant_devuelta(self):
 		cantidad_devuelta = 0
-		invoices_obj = self.env['account.invoice'].search([('type','=','in_refund'),('state','=','open')])
-		if invoices_obj:
-			for inv in invoices_obj:
-				if inv.factura.id == self.invoice_id.factura.id:
-					for lines in inv.invoice_line:
-						if lines.product_id.id == self.product_id.id:
-							cantidad_devuelta += lines.quantity
-			print("Cantidad devuelta: {0}".format(cantidad_devuelta))
+		#Nota de creditos de la factura
+		if self.invoice_id.type == 'in_refund' or self.invoice_id.type == 'out_refund':
+			invoices_obj = self.env['account.invoice'].search([('type','=','in_refund'),('factura.id','=',self.invoice_id.factura.id),('state','=','paid')])
+			print("Fuera del if {0}".format(invoices_obj))
+			print("ID DE LA FACTURA {0}".format(self.invoice_id.factura.id))
+			if invoices_obj:
+				print("Dentro del If xD")
+				for ntc in invoices_obj:
+					for invoice_line in ntc.invoice_line:
+						if invoice_line.product_id.id == self.product_id.id:
+							cantidad_devuelta += invoice_line.quantity
+						print("===================================== {0}".format(ntc.number))
+		print("Cant devuelta: {0}".format(cantidad_devuelta))
 		self.cantidad_devuelta = cantidad_devuelta
 
 		
@@ -112,7 +112,7 @@ class NotasCreditoDebito(models.Model):
             print("++++++++++++++++++ Aqui empiezo ++++++++++++++++++++++++")
             for line in inv.invoice_line:
             	if line.quantity == 0.000:
-            		print("Se borra la linea")
+            		print("Se borra la linea ")
             		line.unlink()
             if not inv.journal_id.sequence_id:
                 raise except_orm(_('Error!'), _('Please define sequence on the journal related to this invoice.'))
