@@ -22,6 +22,15 @@ TYPE2REFUND = {
 class Invoices_lines_ans(models.Model):
 	_inherit = 'account.invoice.line'
 
+	@api.multi
+	@api.onchange('quantity')
+	def onchange_quantity(self):
+		
+		if self.invoice_id.type == 'in_refund' or self.invoice_id.type == 'out_refund':
+			print("Se ejecuta")
+			invoice_obj = self.env['account.invoice']
+			invoice_obj.button_reset_taxes()
+
 	@api.one
 	def _computed_cant_facturada(self):
 		cantidad_facturada = 0
@@ -83,12 +92,12 @@ class NotasCreditoDebito(models.Model):
             if inv.type == 'in_refund' or inv.type == 'out_refund':
             	for line in inv.invoice_line: 
             		total_resta = 0.00
-            		if line.quantity == 0.000:
-            			line.unlink()
+            		
             		total_resta = float(line.cantidad_facturada - line.cantidad_devuelta)
             		if line.quantity > total_resta:
-            			raise except_orm(_('Error!'), _("La cantidad de {0} es mayor a la cantidad restante. (Quedan {1})".format(line.product_id.name,int(total_resta)) ))		 
-
+            			raise except_orm(_('Error!'), _("La cantidad de {0} es mayor a la cantidad restante. (Quedan {1})".format(line.product_id.name,int(total_resta)) ))
+            		if line.quantity == 0.000:
+            			line.unlink()
             if not inv.journal_id.sequence_id:
                 raise except_orm(_('Error!'), _('Please define sequence on the journal related to this invoice.'))
             if not inv.invoice_line:
@@ -260,6 +269,8 @@ class NotasCreditoDebito(models.Model):
 		#print("Cant devuelta: {0}".format(cantidad_devuelta))
 		return cantidad_devuelta
     
+
+
     @api.multi
     @api.onchange('factura')
     def mostrar_monto(self):
@@ -267,10 +278,10 @@ class NotasCreditoDebito(models.Model):
 		cantidad_devuelta = 0
 		invoices_obj = self.env['account.invoice'].search([('factura','=',self.factura.id),('type','=','in_refund')])
 		self.partner_id = self.factura.partner_id
-		self.invoice_line = []
+		self.invoice_line = [(6,0,[])]
+		#Vaciando 
 		lista = []
 		for line in self.factura.invoice_line:
-
 			values = {
             	'type': 'src',
             	'name': line.name.split('\n')[0][:64],
@@ -299,7 +310,9 @@ class NotasCreditoDebito(models.Model):
 
     @api.multi
     def write(self, vals):
-        _logger.info('valor a guardar'+str(vals))	        
+        _logger.info('valor a guardar'+str(vals))
+        #if self.type == 'in_refund' or self.type == 'out_refund':
+        	#self.button_reset_taxes()	        
         return super(NotasCreditoDebito, self).write(vals)
 
 
