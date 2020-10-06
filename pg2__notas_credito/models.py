@@ -18,34 +18,9 @@ TYPE2REFUND = {
     'out_refund': 'out_invoice',        # Customer Refund
     'in_refund': 'in_invoice',          # Supplier Refund
 }
-class ErrorMessage(models.TransientModel):
-    _name = 'pg2.mensaje'
-    _description = 'HR employee wizard'
-    message = fields.Text(string="Factura con saldo menos a la nota de credito", readonly=True, store=True)
 
 class Invoices_lines_ans(models.Model):
 	_inherit = 'account.invoice.line'
-
-
-
-	@api.multi
-	def _computed_cant_devuelta(self):
-		cantidad_devuelta = 0
-		aux = 0
-		#if not self.invoice_id.factura:
-		#	return 0
-		#if not self.product_id:
-		#	return 0
-	 	#invoice_id = self.env['account.invoice']
-	 	##Capturo una lista de objetos de  las notas de credito anteriores
-	 	#invoices_obj = invoice_id.search([('state','in',['paid','open']),('type','=','in_refund'),('factura','=',self.invoice_id.factura.id)])
-	 	##si existen.
-	 	#if invoices_obj:
-	 	#	for invoice in invoices_obj.invoice_line:
-	 	#		print("Factura: {0}".format(invoice))
-		#   	if invoice.product_id.id == self.product_id.id:
-	 	#			cantidad_devuelta += invoice.quantity
-	 	self.cantidad_devuelta = cantidad_devuelta
 
 	@api.one
 	def _computed_cant_facturada(self):
@@ -59,34 +34,26 @@ class Invoices_lines_ans(models.Model):
 					print("Cantidad facturada: {0}".format(cantidad_facturada))
 		self.cantidad_facturada = cantidad_facturada
 
-	@api.one
-	def _compute_cant_devuelta(self):
-		cantidad_devuelta = 0
-		#Nota de creditos de la factura
-		if self.invoice_id.type == 'in_refund' or self.invoice_id.type == 'out_refund':
-			invoices_obj = self.env['account.invoice'].search([('type','=','in_refund'),('factura.id','=',self.invoice_id.factura.id),('state','=','paid')])
-			print("Fuera del if {0}".format(invoices_obj))
-			print("ID DE LA FACTURA {0}".format(self.invoice_id.factura.id))
-			if invoices_obj:
-				print("Dentro del If xD")
-				for ntc in invoices_obj:
-					for invoice_line in ntc.invoice_line:
-						if invoice_line.product_id.id == self.product_id.id:
-							cantidad_devuelta += invoice_line.quantity
-						print("===================================== {0}".format(ntc.number))
-		print("Cant devuelta: {0}".format(cantidad_devuelta))
-		self.cantidad_devuelta = cantidad_devuelta
-
-		
-
-
-
-
-
-
+#	@api.one    
+#	def _compute_cant_devuelta(self):
+#		cantidad_devuelta = 0
+#		#Nota de creditos de la factura
+#		if self.invoice_id.type == 'in_refund' or self.invoice_id.type == 'out_refund':
+#			invoices_obj = self.env['account.invoice'].search([('type','=','in_refund'),('factura.id','=',self.invoice_id.factura.id),('state','=','paid')])
+#			print("Fuera del if {0}".format(invoices_obj))
+#			print("ID DE LA FACTURA {0}".format(self.invoice_id.factura.id))
+#			if invoices_obj:
+#				print("Dentro del If xD")
+#				for ntc in invoices_obj:
+#					for invoice_line in ntc.invoice_line:
+#						if invoice_line.product_id.id == self.product_id.id:
+#							cantidad_devuelta += invoice_line.quantity
+#						print("===================================== {0}".format(ntc.number))
+#		print("Cant devuelta: {0}".format(cantidad_devuelta))
+#		self.cantidad_devuelta = cantidad_devuelta
 
 	type_computed = fields.Selection(string='Filed Label',related="invoice_id.type")
-	cantidad_devuelta = fields.Float(string='Cantidad devuelta',compute=_compute_cant_devuelta,digits=dp.get_precision('Account'))
+	cantidad_devuelta = fields.Float(string='Cantidad devuelta',digits=dp.get_precision('Account'))
 	cantidad_facturada = fields.Float(string='Cantidad Facturada',compute=_computed_cant_facturada,digits=dp.get_precision('Account'))
 
 
@@ -101,6 +68,9 @@ class NotasCreditoDebito(models.Model):
     codigo_autorizacion = fields.Char(string='Codigo autorizacion', size=43)
     description = fields.Char('Motivo', required=True)
 
+
+
+
     @api.multi
     def action_move_create(self):
         """ Creates invoice related analytics and financial move lines """
@@ -109,11 +79,16 @@ class NotasCreditoDebito(models.Model):
 
 
         for inv in self:
-            print("++++++++++++++++++ Aqui empiezo ++++++++++++++++++++++++")
-            for line in inv.invoice_line:
-            	if line.quantity == 0.000:
-            		print("Se borra la linea ")
-            		line.unlink()
+            #print("++++++++++++++++++ Aqui empiezo ++++++++++++++++++++++++")
+            if inv.type == 'in_refund' or inv.type == 'out_refund':
+            	for line in inv.invoice_line: 
+            		total_resta = 0.00
+            		if line.quantity == 0.000:
+            			line.unlink()
+            		total_resta = float(line.cantidad_facturada - line.cantidad_devuelta)
+            		if line.quantity > total_resta:
+            			raise except_orm(_('Error!'), _("La cantidad de {0} es mayor a la cantidad restante. (Quedan {1})".format(line.product_id.name,int(total_resta)) ))		 
+
             if not inv.journal_id.sequence_id:
                 raise except_orm(_('Error!'), _('Please define sequence on the journal related to this invoice.'))
             if not inv.invoice_line:
@@ -264,6 +239,26 @@ class NotasCreditoDebito(models.Model):
         self._log_event()
         return True
 
+
+    @api.multi
+    def compute_cant_devuelta(self,id):
+		cantidad_devuelta = 0
+		#Nota de creditos de la factura
+
+		if self.type == 'in_refund' or self.type == 'out_refund':
+			invoices_obj = self.env['account.invoice'].search([('type','=','in_refund'),('factura.id','=',self.factura.id),('state','=','paid')])
+			#print("Fuera del if {0}".format(invoices_obj))
+			#print("ID DE LA FACTURA {0}".format(self.invoice_id.factura.id))
+			if invoices_obj:
+				#print("Dentro del If xD")
+				for ntc in invoices_obj:
+					for invoice_line in ntc.invoice_line:
+						if invoice_line.product_id.id == id:
+							cantidad_devuelta += invoice_line.quantity
+
+						#print("===================================== {0}".format(ntc.number))
+		#print("Cant devuelta: {0}".format(cantidad_devuelta))
+		return cantidad_devuelta
     
     @api.multi
     @api.onchange('factura')
@@ -273,9 +268,7 @@ class NotasCreditoDebito(models.Model):
 		invoices_obj = self.env['account.invoice'].search([('factura','=',self.factura.id),('type','=','in_refund')])
 		self.partner_id = self.factura.partner_id
 		self.invoice_line = []
-
 		lista = []
-
 		for line in self.factura.invoice_line:
 
 			values = {
@@ -286,9 +279,10 @@ class NotasCreditoDebito(models.Model):
             	'price': line.price_subtotal,
             	'account_id': line.account_id.id,
             	'product_id': line.product_id.id,
+          		'cantidad_devuelta' : self.compute_cant_devuelta(line.product_id.id),
             	'uos_id': line.uos_id.id,
             	'account_analytic_id': line.account_analytic_id.id,
-            	'taxes': line.invoice_line_tax_id,
+            	'invoice_line_tax_id': line.invoice_line_tax_id,
         	}
 			lista.append((0,0,values))
 			#print("Ids: {0}".format(line.id))
