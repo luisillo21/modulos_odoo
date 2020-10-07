@@ -26,7 +26,7 @@ class Invoices_lines_ans(models.Model):
 	@api.onchange('quantity')
 	def onchange_quantity_p(self):
 		
-		if self.invoice_id.type == 'in_refund' or self.invoice_id.type == 'out_refund':
+		if self.invoice_id.type == 'in_refund':
 			print("Se ejecuta")
 			invoice_obj = self.env['account.invoice']
 			invoice_obj.button_reset_taxes()
@@ -35,7 +35,7 @@ class Invoices_lines_ans(models.Model):
 	def _computed_cant_facturada_p(self):
 		cantidad_facturada = 0
 		#cantidad_devuelta = 0
-		if self.invoice_id.type == 'in_refund' or self.invoice_id.type == 'out_refund':
+		if self.invoice_id.type == 'in_refund':
 			invoices_obj = self.env['account.invoice'].search([('id','=',self.invoice_id.factura.id)])
 			for inv_line in invoices_obj.invoice_line:
 				if self.product_id.id == inv_line.product_id.id:
@@ -89,7 +89,7 @@ class NotasCreditoDebito(models.Model):
 
         for inv in self:
             #print("++++++++++++++++++ Aqui empiezo ++++++++++++++++++++++++")
-            if inv.type == 'in_refund' or inv.type == 'out_refund':
+            if inv.type == 'in_refund' :
             	for line in inv.invoice_line: 
             		total_resta = 0.00
             		
@@ -254,7 +254,7 @@ class NotasCreditoDebito(models.Model):
 		cantidad_devuelta = 0
 		#Nota de creditos de la factura
 
-		if self.type == 'in_refund' or self.type == 'out_refund':
+		if self.type == 'in_refund':
 			invoices_obj = self.env['account.invoice'].search([('type','=','in_refund'),('factura.id','=',self.factura.id),('state','=','paid')])
 			#print("Fuera del if {0}".format(invoices_obj))
 			#print("ID DE LA FACTURA {0}".format(self.invoice_id.factura.id))
@@ -377,7 +377,7 @@ class NotasCreditoDebito(models.Model):
         				'date_due':date_due,
         				'currency_id':currency_id
         			  }
-        		if facturas.type == 'out_refund':
+        		if facturas.type == 'in_refund':
         			res['type'] = 'cr'
         		else:
         			res['type'] = 'dr'	

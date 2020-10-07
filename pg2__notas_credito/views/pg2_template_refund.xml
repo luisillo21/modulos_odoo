@@ -5,7 +5,7 @@
         <record model="ir.ui.view" id="pg2_inherit_tree">
             <field name="name">pg2.inherit.refund.tree</field>
             <field name="model">account.invoice</field>
-            <field name="context">{'type':'out_refund'}</field>
+            <field name="context">{'type':'in_refund'}</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
                 <tree colors="blue:state == 'draft';black:state in ('proforma','proforma2','open');gray:state == 'cancel'" string="Notas de credito" >
@@ -35,7 +35,7 @@
 
             <field name="name">pg2.refund.invoice</field>
             <field name="model">account.invoice</field>
-            <field name="context">{'type':'out_refund'}</field>
+            <field name="context">{'type':'in_refund'}</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
 
@@ -260,8 +260,8 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
             <field name="view_id" ref="pg2_inherit_tree"/>
-            <field name="domain">[('type','in', ['out_refund'])]</field>
-            <field name="context">{'type':'out_refund'}</field>
+            <field name="domain">[('type','in', ['in_refund'])]</field>
+            <field name="context">{'type':'in_refund'}</field>
         </record>
 
         <record id="pg2_action_invoice_refund_out_tree_tree" model="ir.actions.act_window.view">
