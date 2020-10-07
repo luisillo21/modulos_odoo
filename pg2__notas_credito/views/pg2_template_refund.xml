@@ -5,7 +5,7 @@
         <record model="ir.ui.view" id="pg2_inherit_tree">
             <field name="name">pg2.inherit.refund.tree</field>
             <field name="model">account.invoice</field>
-            <field name="context">{'type':'in_refund'}</field>
+            <field name="context">{'type':'out_refund'}</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
                 <tree colors="blue:state == 'draft';black:state in ('proforma','proforma2','open');gray:state == 'cancel'" string="Notas de credito" >
@@ -35,7 +35,7 @@
 
             <field name="name">pg2.refund.invoice</field>
             <field name="model">account.invoice</field>
-            <field name="context">{'type':'in_refund'}</field>
+            <field name="context">{'type':'out_refund'}</field>
             <field name="type">form</field>
             <field name="arch" type="xml">
 
@@ -44,7 +44,7 @@
                         <button name="invoice_open" states="draft,proforma2" string="Validate" class="oe_highlight" groups="account.group_account_invoice"/>
  
 
-                        <button name="reconciliar"  type="object" string="Pagar" class="oe_highlight" 
+                        <button name="reconciliar_p"  type="object" string="Pagar" class="oe_highlight" 
                                     attrs="{'invisible':['|','|',('state','!=','open'),('type','=','in_invoice'),('type','=','out_invoice')]}"/>
 
                         <button name="invoice_cancel" states="draft,open" string="Cancel Invoice" groups="account.group_account_invoice"/>
@@ -68,13 +68,13 @@
                         <group>
                             <field string="Supplier" name="partner_id" on_change="onchange_partner_id(type, partner_id, date_invoice, payment_term, partner_bank_id, company_id, context)" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1}" domain="[('supplier', '=', True)]"/>
                             <field name="fiscal_position" options="{'no_create': True}"/>
-                            <field name="origin"/>
+                            <field name="origin" readonly="1"/>
 
-                            <field name="description" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','in_out_refund')],'readonly':[('state','not in','draft')] }"/>                                                                       
+                            <field name="description" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','out_refund')],'readonly':[('state','not in','draft')] }"/>                                                                       
                                                                        
-                            <field name="factura" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','in_out_refund')],'readonly':[('state','not in','draft')]}"/>
+                            <field name="factura" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','out_refund')],'readonly':[('state','not in','draft')]}"/>
 
-                            <field name="tipo"  attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','in_out_refund')],'readonly':[('state','not in','draft')]}"/>
+                            
 
 
                             <field name="supplier_invoice_number"/>
@@ -260,8 +260,8 @@
             <field name="view_type">form</field>
             <field name="view_mode">tree,form</field>
             <field name="view_id" ref="pg2_inherit_tree"/>
-            <field name="domain">[('type','in', ['in_refund', 'out_refund'])]</field>
-            <field name="context">{'type':'in_refund'}</field>
+            <field name="domain">[('type','in', ['out_refund'])]</field>
+            <field name="context">{'type':'out_refund'}</field>
         </record>
 
         <record id="pg2_action_invoice_refund_out_tree_tree" model="ir.actions.act_window.view">

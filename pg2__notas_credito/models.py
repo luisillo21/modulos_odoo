@@ -24,7 +24,7 @@ class Invoices_lines_ans(models.Model):
 
 	@api.multi
 	@api.onchange('quantity')
-	def onchange_quantity(self):
+	def onchange_quantity_p(self):
 		
 		if self.invoice_id.type == 'in_refund' or self.invoice_id.type == 'out_refund':
 			print("Se ejecuta")
@@ -32,7 +32,7 @@ class Invoices_lines_ans(models.Model):
 			invoice_obj.button_reset_taxes()
 
 	@api.one
-	def _computed_cant_facturada(self):
+	def _computed_cant_facturada_p(self):
 		cantidad_facturada = 0
 		#cantidad_devuelta = 0
 		if self.invoice_id.type == 'in_refund' or self.invoice_id.type == 'out_refund':
@@ -63,13 +63,13 @@ class Invoices_lines_ans(models.Model):
 
 	type_computed = fields.Selection(string='Filed Label',related="invoice_id.type")
 	cantidad_devuelta = fields.Float(string='Cantidad devuelta',digits=dp.get_precision('Account'))
-	cantidad_facturada = fields.Float(string='Cantidad Facturada',compute=_computed_cant_facturada,digits=dp.get_precision('Account'))
+	cantidad_facturada = fields.Float(string='Cantidad Facturada',compute=_computed_cant_facturada_p,digits=dp.get_precision('Account'))
 
 
 _logger = logging.getLogger(__name__)
 class NotasCreditoDebito(models.Model):
     _inherit = ['account.invoice']
-    tipo = fields.Selection([('credito', 'Nota de Credito'),('debito', 'Nota de debito'),],'Tipo',default='credito')
+    #tipo = fields.Selection([('credito', 'Nota de Credito'),('debito', 'Nota de debito'),],'Tipo',default='credito')
     factura = fields.Many2one('account.invoice','Factura',domain="['&','&','&',('state','=','open'),('residual','!=',0 ),('type','!=','in_refund'),('type','!=','out_refund')]")
     establecimiento = fields.Char(string='Establecimiento',size=3)
     punto_emision = fields.Char(string='Punto de emision',size=3)
@@ -250,7 +250,7 @@ class NotasCreditoDebito(models.Model):
 
 
     @api.multi
-    def compute_cant_devuelta(self,id):
+    def compute_cant_devuelta_p(self,id):
 		cantidad_devuelta = 0
 		#Nota de creditos de la factura
 
@@ -273,7 +273,7 @@ class NotasCreditoDebito(models.Model):
 
     @api.multi
     @api.onchange('factura')
-    def mostrar_monto(self):
+    def mostrar_monto_p(self):
 		cantidad_facturada = 0
 		cantidad_devuelta = 0
 		invoices_obj = self.env['account.invoice'].search([('factura','=',self.factura.id),('type','=','in_refund')])
@@ -290,7 +290,7 @@ class NotasCreditoDebito(models.Model):
             	'price': line.price_subtotal,
             	'account_id': line.account_id.id,
             	'product_id': line.product_id.id,
-          		'cantidad_devuelta' : self.compute_cant_devuelta(line.product_id.id),
+          		'cantidad_devuelta' : self.compute_cant_devuelta_p(line.product_id.id),
             	'uos_id': line.uos_id.id,
             	'account_analytic_id': line.account_analytic_id.id,
             	'invoice_line_tax_id': line.invoice_line_tax_id,
@@ -314,19 +314,8 @@ class NotasCreditoDebito(models.Model):
         #if self.type == 'in_refund' or self.type == 'out_refund':
         	#self.button_reset_taxes()	        
         return super(NotasCreditoDebito, self).write(vals)
-
-
-
-    @api.depends('tipo')
-    def _onchange_estado(self):
-    	if self.tipo == 'credito':
-    		self.type = 'in_refund'
-    		self.write = ({'type':'in_refund'})
-    	if self.tipo == 'debito':
-    		self.type = 'out_refund'
-    		self.write = ({'type':'out_refund'})
     
-    def reconciliar(self,cr,uid,ids,context=None):
+    def reconciliar_p(self,cr,uid,ids,context=None):
     	res_currency = self.pool.get('res.currency')
         voucher_obj = self.pool.get('account.voucher')
         journal_obj_pool = self.pool.get('account.journal')
@@ -341,7 +330,7 @@ class NotasCreditoDebito(models.Model):
         	company_currency = currency_id = journal.company_id.currency_id.id
 
 
-        	print("Journal: " + str(journal) )
+        	#print("Journal: " + str(journal) )
         	invoice_moves_ids = self.pool.get('account.invoice').search(cr,uid,[('id','in',[inv.id,inv.factura.id])])
         	invoice_moves_obj = self.pool.get('account.invoice').browse(cr,uid,invoice_moves_ids,context=context)
         	vourcher_vals = {
@@ -388,7 +377,7 @@ class NotasCreditoDebito(models.Model):
         				'date_due':date_due,
         				'currency_id':currency_id
         			  }
-        		if facturas.type == 'in_refund':
+        		if facturas.type == 'out_refund':
         			res['type'] = 'cr'
         		else:
         			res['type'] = 'dr'	
