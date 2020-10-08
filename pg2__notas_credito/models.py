@@ -5,6 +5,8 @@ from openerp.osv.orm import except_orm
 from openerp.osv import osv
 from openerp.tools.translate import _
 import openerp.addons.decimal_precision as dp
+from openerp.exceptions import ValidationError
+import re
 import copy
 import logging
 # class pg2__notas_credito(models.Model):
@@ -22,14 +24,7 @@ TYPE2REFUND = {
 class Invoices_lines_ans(models.Model):
 	_inherit = 'account.invoice.line'
 
-	@api.multi
-	@api.onchange('quantity')
-	def onchange_quantity_p(self):
-		
-		if self.invoice_id.type == 'in_refund':
-			print("Se ejecuta")
-			invoice_obj = self.env['account.invoice']
-			invoice_obj.button_reset_taxes()
+
 
 	@api.one
 	def _computed_cant_facturada_p(self):
@@ -66,19 +61,35 @@ class Invoices_lines_ans(models.Model):
 	cantidad_facturada = fields.Float(string='Cantidad Facturada',compute=_computed_cant_facturada_p,digits=dp.get_precision('Account'))
 
 
+
 _logger = logging.getLogger(__name__)
 class NotasCreditoDebito(models.Model):
     _inherit = ['account.invoice']
-    #tipo = fields.Selection([('credito', 'Nota de Credito'),('debito', 'Nota de debito'),],'Tipo',default='credito')
+    tipo = fields.Selection([('nota_credito_proveedores', 'Nota de Credito'),('factura_proveedor', 'Nota de debito'),],'Tipo',default='factura_proveedor')
     factura = fields.Many2one('account.invoice','Factura',domain="['&','&','&',('state','=','open'),('residual','!=',0 ),('type','!=','in_refund'),('type','!=','out_refund')]")
     establecimiento = fields.Char(string='Establecimiento',size=3)
     punto_emision = fields.Char(string='Punto de emision',size=3)
-    secuencial = fields.Char(string='Secuencial',size=3)
-    codigo_autorizacion = fields.Char(string='Codigo autorizacion', size=43)
+    secuencial = fields.Char(string='Secuencial',size=9)
+    codigo_autorizacion = fields.Char(string='Autorizacion',size=43)
+    
     description = fields.Char('Motivo', required=True)
+    
+    @api.multi
+    #@api.onchange('invoice_line')
+    def _onchange_invoice_line_p(invoice_id):
+    	print("================ inchangeinvoice_line> " + str(invoice_id))
 
-
-
+    @api.constrains('secuencial','punto_emision','establecimiento','codigo_autorizacion')
+    def _verificar_campos(self):
+    	for record in self:
+    		if re.search('[a-zA-Z]', record.secuencial):
+    			raise ValidationError("Este campo solo acepta valores numericos: Secuencial ")
+    		if re.search('[a-zA-Z]', record.punto_emision):
+    			raise ValidationError("Este campo solo acepta valores numericos: Punto de emision ")
+    		if re.search('[a-zA-Z]', record.establecimiento):
+    			raise ValidationError("Este campo solo acepta valores numericos: Establecimiento " )
+    		if re.search('[a-zA-Z]', record.codigo_autorizacion):
+    			raise ValidationError("Este campo solo acepta valores numericos: Autorizacion ")
 
     @api.multi
     def action_move_create(self):
@@ -87,12 +98,12 @@ class NotasCreditoDebito(models.Model):
         account_move = self.env['account.move']
 
 
+
         for inv in self:
             #print("++++++++++++++++++ Aqui empiezo ++++++++++++++++++++++++")
             if inv.type == 'in_refund' :
             	for line in inv.invoice_line: 
             		total_resta = 0.00
-            		
             		total_resta = float(line.cantidad_facturada - line.cantidad_devuelta)
             		if line.quantity > total_resta:
             			raise except_orm(_('Error!'), _("La cantidad de {0} es mayor a la cantidad restante. (Quedan {1})".format(line.product_id.name,int(total_resta)) ))
@@ -244,7 +255,8 @@ class NotasCreditoDebito(models.Model):
             # Pass invoice in context in method post: used if you want to get the same
             # account move reference when creating the same invoice after a cancelled one:
             move.post()
-        
+
+        self.reconciliar_p()
         self._log_event()
         return True
 
@@ -305,15 +317,35 @@ class NotasCreditoDebito(models.Model):
 		self.period_id = self.factura.period_id
 		self.fiscal_position = self.factura.fiscal_position
 
-
-		#print(self.monto)
+    @api.multi
+    def button_reset_taxes_p(self,invoice):
+        account_invoice_tax = self.env['account.invoice.tax']
+        ctx = dict(self._context)
+        print("Esta ejecutando elfor")
+        self._cr.execute("DELETE FROM account_invoice_tax WHERE invoice_id=%s AND manual is False", (invoice.id,))
+        self.invalidate_cache()
+        partner = invoice.partner_id
+        if partner.lang:
+            ctx['lang'] = partner.lang
+        for taxe in account_invoice_tax.compute(invoice.with_context(ctx)).values():
+            account_invoice_tax.create(taxe)
+        # dummy write on self to trigger recomputations
+        return self.with_context(ctx).write({'invoice_line': []})
 
     @api.multi
     def write(self, vals):
         _logger.info('valor a guardar'+str(vals))
-        #if self.type == 'in_refund' or self.type == 'out_refund':
-        	#self.button_reset_taxes()	        
-        return super(NotasCreditoDebito, self).write(vals)
+        record = super(NotasCreditoDebito, self).write(vals)
+        print(record)
+        if self.type == 'in_refund':    
+        	invoices_obj = self.env['account.invoice'].search([('id','=',self.id)])[0]
+        	self.env['account.invoice'].button_reset_taxes_p(invoices_obj)
+        	print(invoices_obj.id)
+        #self.button_reset_taxes_p(self.id,self.partner_id.id)
+        
+        return record
+
+
     
     def reconciliar_p(self,cr,uid,ids,context=None):
     	res_currency = self.pool.get('res.currency')
