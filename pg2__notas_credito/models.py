@@ -280,7 +280,23 @@ class NotasCreditoDebito(models.Model):
 						#print("===================================== {0}".format(ntc.number))
 		#print("Cant devuelta: {0}".format(cantidad_devuelta))
 		return cantidad_devuelta
-    
+    @api.multi
+    def cancelar_refund_p(self):
+        context = {}
+        factura_cancelada = False
+        pago_cancelado = False
+        voucher = None
+        voucher_obj = self.pool.get('account.voucher')
+        self._cr.execute("SELECT v.id FROM public.account_voucher as v join public.account_voucher_line as vl on v.id = vl.voucher_id where vl.name = %s",(self.number,))
+        voucher = self._cr.fetchone()
+        voucher_lines_ids = []
+        if voucher:
+        	#print("Voucher id: "+ str(voucher))
+        	pago_cancelado = voucher_obj.cancel_voucher(self._cr,self._uid,voucher,context=context)
+        if pago_cancelado:
+        	#print("Factura Cancelada")
+        	factura_cancelada = self.action_cancel_draft()
+
 
 
     @api.multi
@@ -340,7 +356,7 @@ class NotasCreditoDebito(models.Model):
         if self.type == 'in_refund':    
         	invoices_obj = self.env['account.invoice'].search([('id','=',self.id)])[0]
         	self.env['account.invoice'].button_reset_taxes_p(invoices_obj)
-        	print(invoices_obj.id)
+        	#print(invoices_obj.id)
         #self.button_reset_taxes_p(self.id,self.partner_id.id)
         
         return record
