@@ -360,6 +360,17 @@ class NotasCreditoDebito(models.Model):
         #self.button_reset_taxes_p(self.id,self.partner_id.id)
         
         return record
+    @api.model
+    def create(self, values):
+    	values['tipo'] = 'nota_credito_proveedores'
+    	record = super(NotasCreditoDebito, self).create(values)
+    	#_logger.info('valor a guardar'+str(self.type))
+    	if values['tipo'] == 'nota_credito_proveedores':
+    		self._cr.execute('select "id" from "account_invoice" order by "id" desc limit 1')
+    		last_id = self._cr.fetchone()
+    		invoices_obj = self.env['account.invoice'].search([('id','=',last_id)])[0]
+    		self.env['account.invoice'].button_reset_taxes_p(invoices_obj)
+        return record
 
 
     
