@@ -130,7 +130,7 @@ class NotasCreditoDebito(models.Model):
         return result
 
     tipo = fields.Selection([('nota_credito_proveedores', 'Nota de Credito'),('factura_proveedor', 'Nota de debito'),],'Tipo',default='nota_credito_proveedores')
-    factura = fields.Many2one('account.invoice','Factura',domain=[('state','=','open'),('residual','!=',0 ),('type','!=','in_refund'),('type','!=','out_refund')])
+    factura = fields.Many2one('account.invoice','Factura',domain=[('partner_id','=',0)])
     establecimiento = fields.Char(string='Establecimiento',size=3)
     punto_emision = fields.Char(string='Punto de emisión',size=3)
     secuencial = fields.Char(string='Secuencial',size=9)
