@@ -21,11 +21,22 @@ TYPE2REFUND = {
     'in_refund': 'in_invoice',          # Supplier Refund
 }
 
+class Wizar_cancel_refund(models.TransientModel):
+    _name = 'wizard.cancel.refund'
+    _description = 'Modal para solicitar motivo de cancelacion.'
+    motivo = fields.Char(string='Motivo')
+    @api.multi
+    def cancelar_nota_credito_p(self):
+    	active_id = self._context.get('active_id', False)
+    	if active_id:
+    		invoices_obj = self.env['account.invoice']
+    		print("Active id " + str(active_id))
+    		inv = invoices_obj.search([('id','=',active_id)],limit=1)
+    		if inv.cancelar_refund_p():
+    			inv.write({'description':self.motivo})
+
 class Invoices_lines_ans(models.Model):
 	_inherit = 'account.invoice.line'
-
-
-
 	@api.one
 	def _computed_cant_facturada_p(self):
 		cantidad_facturada = 0
@@ -35,26 +46,9 @@ class Invoices_lines_ans(models.Model):
 			for inv_line in invoices_obj.invoice_line:
 				if self.product_id.id == inv_line.product_id.id:
 					cantidad_facturada += inv_line.quantity
-					print("Cantidad facturada: {0}".format(cantidad_facturada))
+					#print("Cantidad facturada: {0}".format(cantidad_facturada))
 		self.cantidad_facturada = cantidad_facturada
 
-#	@api.one    
-#	def _compute_cant_devuelta(self):
-#		cantidad_devuelta = 0
-#		#Nota de creditos de la factura
-#		if self.invoice_id.type == 'in_refund' or self.invoice_id.type == 'out_refund':
-#			invoices_obj = self.env['account.invoice'].search([('type','=','in_refund'),('factura.id','=',self.invoice_id.factura.id),('state','=','paid')])
-#			print("Fuera del if {0}".format(invoices_obj))
-#			print("ID DE LA FACTURA {0}".format(self.invoice_id.factura.id))
-#			if invoices_obj:
-#				print("Dentro del If xD")
-#				for ntc in invoices_obj:
-#					for invoice_line in ntc.invoice_line:
-#						if invoice_line.product_id.id == self.product_id.id:
-#							cantidad_devuelta += invoice_line.quantity
-#						print("===================================== {0}".format(ntc.number))
-#		print("Cant devuelta: {0}".format(cantidad_devuelta))
-#		self.cantidad_devuelta = cantidad_devuelta
 
 	type_computed = fields.Selection(string='Filed Label',related="invoice_id.type")
 	cantidad_devuelta = fields.Float(string='Cantidad devuelta',digits=dp.get_precision('Account'))
@@ -65,31 +59,115 @@ class Invoices_lines_ans(models.Model):
 _logger = logging.getLogger(__name__)
 class NotasCreditoDebito(models.Model):
     _inherit = ['account.invoice']
-    tipo = fields.Selection([('nota_credito_proveedores', 'Nota de Credito'),('factura_proveedor', 'Nota de debito'),],'Tipo',default='factura_proveedor')
-    factura = fields.Many2one('account.invoice','Factura',domain="['&','&','&',('state','=','open'),('residual','!=',0 ),('type','!=','in_refund'),('type','!=','out_refund')]")
-    establecimiento = fields.Char(string='Establecimiento',size=3)
-    punto_emision = fields.Char(string='Punto de emision',size=3)
-    secuencial = fields.Char(string='Secuencial',size=9)
-    codigo_autorizacion = fields.Char(string='Autorizacion',size=43)
-    
-    description = fields.Char('Motivo', required=True)
-    
+
     @api.multi
-    #@api.onchange('invoice_line')
-    def _onchange_invoice_line_p(invoice_id):
-    	print("================ inchangeinvoice_line> " + str(invoice_id))
+    def onchange_partner_id(self, type, partner_id, date_invoice=False,
+            payment_term=False, partner_bank_id=False, company_id=False,tipo=False):
+        account_id = False
+        payment_term_id = False
+        fiscal_position = False
+        bank_id = False
+        p = self.env['res.partner'].browse(partner_id or False)
+        
+        
+        if partner_id:
+            rec_account = p.property_account_receivable
+            pay_account = p.property_account_payable
+            if company_id:
+                if p.property_account_receivable.company_id and \
+                        p.property_account_receivable.company_id.id != company_id and \
+                        p.property_account_payable.company_id and \
+                        p.property_account_payable.company_id.id != company_id:
+                    prop = self.env['ir.property']
+                    rec_dom = [('name', '=', 'property_account_receivable'), ('company_id', '=', company_id)]
+                    pay_dom = [('name', '=', 'property_account_payable'), ('company_id', '=', company_id)]
+                    res_dom = [('res_id', '=', 'res.partner,%s' % partner_id)]
+                    rec_prop = prop.search(rec_dom + res_dom) or prop.search(rec_dom)
+                    pay_prop = prop.search(pay_dom + res_dom) or prop.search(pay_dom)
+                    rec_account = rec_prop.get_by_record(rec_prop)
+                    pay_account = pay_prop.get_by_record(pay_prop)
+                    if not rec_account and not pay_account:
+                        action = self.env.ref('account.action_account_config')
+                        msg = _('Cannot find a chart of accounts for this company, You should configure it. \nPlease go to Account Configuration.')
+                        raise RedirectWarning(msg, action.id, _('Go to the configuration panel'))
+
+            if type in ('out_invoice', 'out_refund'):
+                account_id = rec_account.id
+                payment_term_id = p.property_payment_term.id
+            else:
+                account_id = pay_account.id
+                payment_term_id = p.property_supplier_payment_term.id
+            fiscal_position = p.property_account_position.id
+
+        result = {'value': {
+            'account_id': account_id,
+            'payment_term': payment_term_id,
+            'fiscal_position': fiscal_position,
+        }}
+        #======================= Pg2 ===========================
+        if type == 'in_refund' and tipo=='nota_credito_proveedores' and partner_id:
+        	print(tipo)
+        	print("Picadura de la cobra gei")
+        	result['domain'] = {'factura':  [('type', '=', 'in_invoice'),('partner_id', '=', partner_id),('state','=','open'),('residual','!=',0 ),('type','!=','in_refund'),('type','!=','out_refund')]}
+        #==================================================
+        if type in ('in_invoice', 'out_refund'):
+            bank_ids = p.commercial_partner_id.bank_ids
+            bank_id = bank_ids[0].id if bank_ids else False
+            result['value']['partner_bank_id'] = bank_id
+            result['domain'] = {'partner_bank_id':  [('id', 'in', bank_ids.ids)]}
+
+        if payment_term != payment_term_id:
+            if payment_term_id:
+                to_update = self.onchange_payment_term_date_invoice(payment_term_id, date_invoice)
+                result['value'].update(to_update.get('value', {}))
+            else:
+                result['value']['date_due'] = False
+
+        if partner_bank_id != bank_id:
+            to_update = self.onchange_partner_bank(bank_id)
+            result['value'].update(to_update.get('value', {}))
+
+        return result
+
+    tipo = fields.Selection([('nota_credito_proveedores', 'Nota de Credito'),('factura_proveedor', 'Nota de debito'),],'Tipo',default='nota_credito_proveedores')
+    factura = fields.Many2one('account.invoice','Factura',domain=[('state','=','open'),('residual','!=',0 ),('type','!=','in_refund'),('type','!=','out_refund')])
+    establecimiento = fields.Char(string='Establecimiento',size=3)
+    punto_emision = fields.Char(string='Punto de emisión',size=3)
+    secuencial = fields.Char(string='Secuencial',size=9)
+    codigo_autorizacion = fields.Char(string='Autorización',size=43)
+    description = fields.Char('Motivo')
+    
+
+
+
+
+    @api.constrains('secuencial','punto_emision','establecimiento')
+    def validar_campos_especiales(self):
+    	invoice_count = self.env['account.invoice'].search([('partner_id','=',self.partner_id.id),('state','in',['paid'])],order='date_invoice desc')
+    	#print("Se ejecuta "+ str(self.punto_emision))
+    	for inv in invoice_count:
+    		if inv.secuencial == self.secuencial:
+    			raise ValidationError("El numero secuencial se encuentra en uso.")
+    		if inv.punto_emision == self.punto_emision:
+    			raise ValidationError("El punto de emisión se encuentra en uso.")
+    		if inv.establecimiento == self.establecimiento:
+    			raise ValidationError("El numero de establecimiento se encuentra en uso.")
+    	
+
 
     @api.constrains('secuencial','punto_emision','establecimiento','codigo_autorizacion')
     def _verificar_campos(self):
+    	#self.validar_campos_especiales()
     	for record in self:
     		if re.search('[a-zA-Z]', record.secuencial):
-    			raise ValidationError("Este campo solo acepta valores numericos: Secuencial ")
+    			raise ValidationError("El numero secuencial solo acepta valores numéricos.")
     		if re.search('[a-zA-Z]', record.punto_emision):
-    			raise ValidationError("Este campo solo acepta valores numericos: Punto de emision ")
+    			raise ValidationError("El punto de emisión solo acepta valores numéricos.")
     		if re.search('[a-zA-Z]', record.establecimiento):
-    			raise ValidationError("Este campo solo acepta valores numericos: Establecimiento " )
+    			raise ValidationError("El numero de establecimiento solo acepta valores numéricos." )
     		if re.search('[a-zA-Z]', record.codigo_autorizacion):
-    			raise ValidationError("Este campo solo acepta valores numericos: Autorizacion ")
+    			raise ValidationError("El numero de autorización solo acepta valores numéricos.")
+
 
     @api.multi
     def action_move_create(self):
@@ -255,8 +333,8 @@ class NotasCreditoDebito(models.Model):
             # Pass invoice in context in method post: used if you want to get the same
             # account move reference when creating the same invoice after a cancelled one:
             move.post()
-
-        self.reconciliar_p()
+        if self.type == 'in_refund' and self.tipo == 'nota_credito_proveedores':
+        	self.reconciliar_p()
         self._log_event()
         return True
 
@@ -283,20 +361,30 @@ class NotasCreditoDebito(models.Model):
     @api.multi
     def cancelar_refund_p(self):
         context = {}
-        factura_cancelada = False
         pago_cancelado = False
         voucher = None
         voucher_obj = self.pool.get('account.voucher')
         self._cr.execute("SELECT v.id FROM public.account_voucher as v join public.account_voucher_line as vl on v.id = vl.voucher_id where vl.name = %s",(self.number,))
         voucher = self._cr.fetchone()
-        voucher_lines_ids = []
         if voucher:
-        	#print("Voucher id: "+ str(voucher))
+        	print("Se cancela")
         	pago_cancelado = voucher_obj.cancel_voucher(self._cr,self._uid,voucher,context=context)
         if pago_cancelado:
-        	#print("Factura Cancelada")
-        	factura_cancelada = self.action_cancel_draft()
+        	self.action_cancel_draft_p()
+        return pago_cancelado
 
+    @api.multi
+    def action_cancel_draft_p(self):
+        # go from canceled state to draft state
+        self.write({'state': 'cancel'})
+        self.delete_workflow()
+        self.create_workflow()
+        return True
+
+
+
+	
+        
 
 
     @api.multi
@@ -304,8 +392,8 @@ class NotasCreditoDebito(models.Model):
     def mostrar_monto_p(self):
 		cantidad_facturada = 0
 		cantidad_devuelta = 0
-		invoices_obj = self.env['account.invoice'].search([('factura','=',self.factura.id),('type','=','in_refund')])
-		self.partner_id = self.factura.partner_id
+		#invoices_obj = self.env['account.invoice'].search([('factura','=',self.factura.id),('type','=','in_refund')])
+		#self.partner_id = self.factura.partner_id
 		self.invoice_line = [(6,0,[])]
 		#Vaciando 
 		lista = []
@@ -337,7 +425,6 @@ class NotasCreditoDebito(models.Model):
     def button_reset_taxes_p(self,invoice):
         account_invoice_tax = self.env['account.invoice.tax']
         ctx = dict(self._context)
-        print("Esta ejecutando elfor")
         self._cr.execute("DELETE FROM account_invoice_tax WHERE invoice_id=%s AND manual is False", (invoice.id,))
         self.invalidate_cache()
         partner = invoice.partner_id
@@ -352,12 +439,9 @@ class NotasCreditoDebito(models.Model):
     def write(self, vals):
         _logger.info('valor a guardar'+str(vals))
         record = super(NotasCreditoDebito, self).write(vals)
-        print(record)
         if self.type == 'in_refund':    
         	invoices_obj = self.env['account.invoice'].search([('id','=',self.id)])[0]
         	self.env['account.invoice'].button_reset_taxes_p(invoices_obj)
-        	#print(invoices_obj.id)
-        #self.button_reset_taxes_p(self.id,self.partner_id.id)
         
         return record
     @api.model

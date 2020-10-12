@@ -1,24 +1,47 @@
 <?xml version="1.0" encoding="utf-8"?>
 <openerp>
     <data>
+    <!-- WIZARD PARA CONFIRMAR CANCELACION-->
+   <record model="ir.ui.view" id="split_livraison_into_wizard">
+    <field name="name">split.livraison.into.wizard</field>
+    <field name="model">wizard.cancel.refund</field>
+    <field name="arch" type="xml">
+        <form string="Cancelar nota de crédito">
+            <group colspan="3">
+                <field name="motivo" required="1"/>
+            </group>
+            <footer>
+                <button string="Cerrar" class="oe_right" special="cancel" />
+                <button name="cancelar_nota_credito_p" class="oe_right oe_highlight" string="Confirmar" type="object"/>
+                
+            </footer>
+        </form>
+    </field>
+    </record>
+
+    <record id="action_cancelar_refund" model="ir.actions.act_window">
+        <field name="name">Cancelar Nota de crédito</field>
+        <field name="type">ir.actions.act_window</field>
+        <field name="res_model">wizard.cancel.refund</field>
+        <field name="view_type">form</field>
+        <field name="view_mode">form</field>
+        <field name="target">new</field>
+    </record>
+    <!--==================================-->
            
         <record model="ir.ui.view" id="pg2_inherit_tree">
             <field name="name">pg2.inherit.refund.tree</field>
             <field name="model">account.invoice</field>
-            <field name="domain">[('type','in', ['in_refund']),('tipo','=','nota_credito_proveedores')]</field>
             <field name="type">tree</field>
             <field name="arch" type="xml">
                 <tree colors="blue:state == 'draft';black:state in ('proforma','proforma2','open');gray:state == 'cancel'" string="Notas de credito" >
                     <field name="partner_id" groups="base.group_user"/>
                     <field name="commercial_partner_id" invisible="1"/>
                     <field name="date_invoice"/>
-                    <field name="origin" string="Factura"/>
+                    <field name="description" string="Motivo"/>
                     <field name="reference" invisible="1"/>
                     <field name="name" invisible="1"/>
-                    <field name="journal_id" invisible="1"/>
-                    <field name="period_id" invisible="1" groups="account.group_account_user"/>
                     <field name="company_id" groups="base.group_multi_company" widget="selection"/>
-                    <field name="user_id" string="Responsible"/>
                     <field name="date_due"/>
                     <field name="currency_id" groups="base.group_multi_currency"/>
                     <field name="residual" sum="Residual Amount"/>
@@ -35,8 +58,9 @@
 
             <field name="name">pg2.refund.invoice</field>
             <field name="model">account.invoice</field>
-            <field name="context">{'type':'in_refund','tipo':'nota_credito_proveedores'}</field>
             <field name="type">form</field>
+            <field name="context">{"type":"in_refund","tipo":"nota_credito_proveedores"}
+            </field>
             <field name="arch" type="xml">
 
                 <form string="Notas de credito">
@@ -47,34 +71,40 @@
                         <button name="reconciliar_p"  type="object" string="Pagar" class="oe_highlight" 
                                     attrs="{'invisible':['|','|',('state','!=','open'),('type','=','in_invoice'),('type','=','out_invoice')]}"/>
 
-                        <button name="invoice_cancel" states="draft,open" string="Cancel Invoice" groups="account.group_account_invoice"/>
 
-                        <button name="cancelar_refund_p" type="object" states="paid" class="oe_highlight" string="Cancelar" />
+                        <button  name="%(action_cancelar_refund)d" type="action" states="paid" class="oe_highlight" string="Cancelar nota de crédito" />
 
-                        <button name="action_cancel_draft" states="cancel" string="Set to Draft" type="object" groups="account.group_account_invoice"/>
+
                         <button name="231" type="action" string="Re-Open" groups="account.group_account_invoice" attrs="{'invisible':['|', ('state','&lt;&gt;','paid'), ('reconciled', '=', True)]}" help="This button only appears when the state of the invoice is 'paid' (showing that it has been fully reconciled) and auto-computed boolean 'reconciled' is False (depicting that it's not the case anymore). In other words, the invoice has been dereconciled and it does not fit anymore the 'paid' state. You should press this button to re-open it and let it continue its normal process after having resolved the eventual exceptions it may have created."/>
-                    <field name="state" widget="statusbar" statusbar_visible="draft,open,paid" statusbar_colors="{&quot;proforma&quot;:&quot;blue&quot;,&quot;proforma2&quot;:&quot;blue&quot;}"/>
+
+                    <field name="state" widget="statusbar" statusbar_visible="draft,paid" statusbar_colors="{&quot;proforma&quot;:&quot;blue&quot;,&quot;proforma2&quot;:&quot;blue&quot;}"/>
                 </header>
                 <sheet string="Supplier Invoice">
                     <div class="oe_title">
                         <h1>
                             <label string="Draft Invoice" attrs="{'invisible': ['|',('state','&lt;&gt;','draft'), ('type','&lt;&gt;','in_invoice')]}"/>
-                            <label string="Draft Refund" attrs="{'invisible': ['|',('state','&lt;&gt;','draft'), ('type','&lt;&gt;','in_refund')]}"/>
+                            
+                            <label string="Borrador Nota de Crédito" attrs="{'invisible': ['|',('state','&lt;&gt;','draft'), ('type','&lt;&gt;','in_refund')]}"/>
+                            
                             <label string="Invoice" attrs="{'invisible': ['|',('state', '=', 'draft'), ('type','&lt;&gt;','in_invoice')]}"/>
-                            <label string="Refund" attrs="{'invisible': ['|',('state', '=', 'draft'), ('type','&lt;&gt;','in_refund')]}"/>
+                            
+                            <label string="Nota de crédito" attrs="{'invisible': ['|',('state', '=', 'draft'), ('type','&lt;&gt;','in_refund')]}"/>
+
                             <field name="number" class="oe_inline" attrs="{'invisible': [('state', '=', 'draft')]}"/>
+                        
                         </h1>
                     </div>
                     <field name="type" invisible="1"/>
+                    <field name="tipo" invisible="1"/>
                     <group>
                         <group>
-                            <field string="Supplier" name="partner_id" on_change="onchange_partner_id(type, partner_id, date_invoice, payment_term, partner_bank_id, company_id, context)" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1}" domain="[('supplier', '=', True)]"/>
+                            <field string="Supplier" name="partner_id" on_change="onchange_partner_id(type,partner_id, date_invoice, payment_term, partner_bank_id,company_id,tipo,context)" context="{'default_customer': 0, 'search_default_supplier': 1, 'default_supplier': 1}" domain="[('supplier', '=', True)]"/>
                             <field name="fiscal_position" options="{'no_create': True}"/>
                             <field name="origin" readonly="1"/>
 
                             <field name="description" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','out_refund')],'readonly':[('state','not in','draft')] }"/>                                                                       
                                                                        
-                            <field name="factura" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','out_refund')],'readonly':[('state','not in','draft')]}"/>
+                            <field name="factura" options="{'no_create': True, 'no_create_edit':True}" attrs="{'invisible':['|',('type','=','in_invoice'),('type','=','out_invoice')],'required':['|',('type','=','in_refund'),('type','=','out_refund')],'readonly':[('state','not in','draft')]}"/>
 
                             
 
@@ -92,7 +122,7 @@
 
 
 
-                            <field name="period_id" attrs="{'invisible':['|',('type','=','out_invoice'),('type','=','in_invoice')],'readonly':[('state','not in','draft')],'required':['|',('type','=','in_refund'),('type','=','out_refund')]}"/>
+                            <field name="period_id" string="Forzar Periodo" attrs="{'invisible':['|',('type','=','out_invoice'),('type','=','in_invoice')],'readonly':[('state','not in','draft')],'required':['|',('type','=','in_refund'),('type','=','out_refund')]}"/>
 
 
                             <field domain="[('company_id', '=', company_id), ('type', '=', 'payable')]" name="account_id" groups="account.group_account_user"/>
@@ -108,21 +138,21 @@
                             <center>
                         <table  style='width:80%; ' border='0'>
                             <tr>
-                                <strong>
+                                
                                 <th  style='font-weight:bold'>
                                 
                                     <strong>
-                                        <label for="establecimiento"/>
+                                        <label for="establecimiento"  style="font-weight:bold;"/>
                                     </strong>
                                 
                                 </th>
                                 <th></th>
-                                <th style=' font-weight:bold'>
-                                    <label for="punto_emision"/>
+                                <th >
+                                    <label for="punto_emision"  style="font-weight:bold;"/>
                                 </th>
                                 <th></th>
-                                <th style='font-size:14px;font-weight:bold'><label for="secuencial"/></th>
-                                </strong>
+                                <th style='font-size:14px;font-weight:bold'><label style="font-weight:bold;" for="secuencial"/></th>
+                                
                             </tr>
                             <tr>
                               <td style="width: 30%;">
@@ -167,7 +197,7 @@
                                     <field name="cantidad_facturada" attrs="{'readonly':['|',('type_computed','=','in_refund'),('type_computed','=','out_refund')]}"/>
 
                                     <field name="uos_id" groups="product.group_uom" on_change="uos_id_change(product_id, uos_id, quantity, name, parent.type, parent.partner_id, parent.fiscal_position, price_unit, parent.currency_id, parent.company_id, context)"/>
-                                    <field name="price_unit" attrs="{'readonly':['|',('type_computed','=','in_refund'),('type_computed','=','out_refund')]}"/>
+                                    <field name="price_unit" string="Precio Unitario" attrs="{'readonly':['|',('type_computed','=','in_refund'),('type_computed','=','out_refund')]}"/>
                                     <field name="discount" groups="sale.group_discount_per_so_line"/>
                                     <field name="invoice_line_tax_id" attrs="{'readonly':['|',('type_computed','=','in_refund'),('type_computed','=','out_refund')]}" widget="many2many_tags" context="{'type':parent.type}" domain="[('parent_id','=',False),('company_id', '=', parent.company_id)]"/>
                                     <field name="price_subtotal"/>
@@ -225,7 +255,7 @@
                             
                             <group>
                                 <group>
-                                <field name="codigo_autorizacion"  string="Autorizacion" attrs="{'invisible':['|',('type','=','out_invoice'),('type','=','in_invoice')],'readonly':[('state','not in','draft')],'required':['|',('type','=','in_refund'),('type','=','out_refund')]}"/>
+                                <field name="codigo_autorizacion"  string="Autorización" attrs="{'invisible':['|',('type','=','out_invoice'),('type','=','in_invoice')],'readonly':[('state','not in','draft')],'required':['|',('type','=','in_refund'),('type','=','out_refund')]}"/>
                                 </group>
                             </group>
 
@@ -263,7 +293,7 @@
             <field name="view_mode">tree,form</field>
             <field name="view_id" ref="pg2_inherit_tree"/>
             <field name="domain">[('type','in', ['in_refund']),('tipo','=','nota_credito_proveedores')]</field>
-            <field name="context">{'type':'in_refund','tipo':'nota_credito_proveedores'}</field>
+           
         </record>
 
         <record id="pg2_action_invoice_refund_out_tree_tree" model="ir.actions.act_window.view">
@@ -276,9 +306,9 @@
         <record id="pg2_action_invoice_refund_out_tree_form" model="ir.actions.act_window.view">
             <field eval="2" name="sequence"/>
             <field name="view_mode">form</field>
+             <field name="context">{"type":"in_refund", "tipo":"nota_credito_proveedores"}</field>
             <field name="view_id" ref="pg2_inherit_refund_id"/>
             <field name="act_window_id" ref="pg2_action_notasCredito"/>
-            <field name="context">{'type':'in_refund','tipo':'nota_credito_proveedores'}</field>
         </record>
 
 
