@@ -67,6 +67,8 @@
                 <header>
                         <button name="invoice_open" states="draft,proforma2" string="Validate" class="oe_highlight" groups="account.group_account_invoice"/>
  
+                        <button name="email_pruebas" type="object" states="draft" string="Prueba Correos electronicos" class="oe_highlight"/>
+ 
 
                         <button name="reconciliar_p"  type="object" string="Pagar" class="oe_highlight" 
                                     attrs="{'invisible':['|','|',('state','!=','open'),('type','=','in_invoice'),('type','=','out_invoice')]}"/>

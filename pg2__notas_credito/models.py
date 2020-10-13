@@ -54,11 +54,52 @@ class Invoices_lines_ans(models.Model):
 	cantidad_devuelta = fields.Float(string='Cantidad devuelta',digits=dp.get_precision('Account'))
 	cantidad_facturada = fields.Float(string='Cantidad Facturada',compute=_computed_cant_facturada_p,digits=dp.get_precision('Account'))
 
+import smtplib
+import email.message
+import smtplib
 
 
 _logger = logging.getLogger(__name__)
 class NotasCreditoDebito(models.Model):
     _inherit = ['account.invoice']
+
+    @api.multi
+    def email_pruebas(self):
+        msg = email.message.Message()
+        invoices = self.env['account.invoice'].search([('type','=','in_refund'),('tipo','=','nota_credito_proveedores')])
+        #MESES = ['Agosto','Septiembre','Octubre']
+        message = "Thank you"
+        #Detalle de Facturas
+        detail_template ="""<table> """
+        for m in invoices:
+            detail_template += "<tr> <td>"+str(m.number)+"</td>"+"<td>"+str(m.partner_id.name)+"</td>"
+        detail_template += "</tr></table>"
+        #===================
+        template = """<html>
+                        <head>    
+                        </head>
+                        <body>
+                            <label>Guayaquil, Octubre 6,2020</label><br>
+                            <label>Senor Representante: CORREA ORDENANA MANUEL</label><br>
+                            <label>del estudiante: CORREA AGUILAR ALICE CLARISSA</label><br>
+                            <label >Curso: 1.B &nbsp; &nbsp; Paralelo: A</label><br>
+                            Recordamos a Ud., que sus obligaciones con la Institucion se encuentran vencidas en los meses de:
+                            {0}
+                        </body>
+                        <footer>
+                        </footer>
+                        </html>""".format(detail_template)
+        msg['From'] = "luisardilamacias@gmail.com"
+        password = "Sodaestereo98"
+        msg['To'] = "neliomarcos040@gmail.com"
+        msg['Subject'] = "Pruebas"
+        msg.add_header('Content-Type','text/html')
+        msg.set_payload(template)
+        s = smtplib.SMTP('smtp.gmail.com:587')
+        s.starttls()
+        s.login(msg['From'], password)
+        s.sendmail(msg['From'], [msg['To']], msg.as_string())
+        print ("successfully sent email to %s:" % (msg['To']))
 
     @api.multi
     def onchange_partner_id(self, type, partner_id, date_invoice=False,
